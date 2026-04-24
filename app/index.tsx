@@ -12,7 +12,7 @@ import {
 } from 'react-native'
 import { generateFuzz } from '../src/offsetLogic'
 import { validateSlot, type Slot } from '../src/scheduleLogic'
-import { saveSettings } from '../modules/soonish-widget'
+import { saveSettings, loadSettings } from '../modules/soonish-widget'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -34,6 +34,29 @@ export default function SettingsScreen() {
   const [useCustom, setUseCustom] = useState(false)
   const [slots, setSlots] = useState<Slot[]>([])
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return
+    ;(async () => {
+      const loaded = await loadSettings()
+      if (!loaded.isInitialized) {
+        // 初回起動: デフォルト値をウィジェットに書き込む
+        await saveSettings({ mode: 'fixed', offsetMinutes: 10, fuzz: 0, slots: [] })
+      } else {
+        // 保存済み設定をUIに反映
+        setMode(loaded.mode as 'fixed' | 'fuzzy')
+        const m = loaded.offsetMinutes as number
+        if (m === 5 || m === 10 || m === 15) {
+          setOffsetMinutes(m)
+          setUseCustom(false)
+        } else {
+          setOffsetMinutes(m)
+          setCustomInput(String(m))
+          setUseCustom(true)
+        }
+      }
+    })()
+  }, [])
 
   // Slot editor state
   const [slotFrom, setSlotFrom] = useState('07:00')
@@ -66,7 +89,8 @@ export default function SettingsScreen() {
       Alert.alert('保存しました', 'ウィジェットに反映されます')
     } catch (e) {
       if (Platform.OS === 'ios') {
-        Alert.alert('エラー', '設定の保存に失敗しました。\nApp Group が設定されているか確認してください。')
+        const msg = e instanceof Error ? e.message : String(e)
+        Alert.alert('エラー', msg)
       } else {
         // Android: native module not yet implemented — just acknowledge
         Alert.alert('保存しました（Android はウィジェット未対応）')

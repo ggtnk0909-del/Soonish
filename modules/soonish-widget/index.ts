@@ -24,3 +24,22 @@ export async function saveSettings(settings: Settings): Promise<void> {
     slotsJSON: JSON.stringify(settings.slots),
   })
 }
+
+export interface LoadedSettings {
+  isInitialized: boolean
+  offsetMinutes: number
+  mode: string
+  fuzz: number
+}
+
+/**
+ * Loads settings from the App Group UserDefaults.
+ * Returns isInitialized=false if settings have never been saved.
+ */
+export async function loadSettings(): Promise<LoadedSettings> {
+  if (Platform.OS !== 'ios') {
+    return { isInitialized: false, offsetMinutes: 10, mode: 'fixed', fuzz: 0 }
+  }
+  const mod = requireNativeModule('SoonishWidget')
+  return await mod.loadSettings()
+}

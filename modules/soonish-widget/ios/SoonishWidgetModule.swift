@@ -29,5 +29,22 @@ public class SoonishWidgetModule: Module {
       defaults.synchronize()
       WidgetCenter.shared.reloadAllTimelines()
     }
+
+    // loadSettings() -> { offsetMinutes, mode, fuzz, isInitialized }
+    AsyncFunction("loadSettings") { () -> [String: Any] in
+      guard let defaults = UserDefaults(suiteName: appGroupID) else {
+        return ["isInitialized": false, "offsetMinutes": 10, "mode": "fixed", "fuzz": 0]
+      }
+      let isInitialized = defaults.object(forKey: "offsetMinutes") != nil
+      let offset = defaults.integer(forKey: "offsetMinutes")
+      let mode   = defaults.string(forKey: "mode") ?? "fixed"
+      let fuzz   = defaults.integer(forKey: "fuzz")
+      return [
+        "isInitialized": isInitialized,
+        "offsetMinutes": isInitialized ? offset : 10,
+        "mode": mode,
+        "fuzz": fuzz,
+      ]
+    }
   }
 }

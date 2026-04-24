@@ -1,6 +1,7 @@
 {
   "platforms": ["ios"],
   "ios": {
-    "modules": ["SoonishWidgetModule"]
+    "modules": ["SoonishWidgetModule"],
+    "podspecPath": "soonish-widget.podspec"
   }
 }

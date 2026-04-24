@@ -1,5 +1,6 @@
 import WidgetKit
 import SwiftUI
+import AppIntents
 
 // MARK: - App Group constants
 
@@ -30,6 +31,13 @@ private struct SoonishSettings {
     }
 }
 
+// MARK: - AppIntent (required for iOS 26+)
+
+struct SoonishWidgetIntent: WidgetConfigurationIntent {
+    static let title: LocalizedStringResource = "Soonish"
+    static let description = IntentDescription("少し先の時刻を表示して遅刻を防ぎます。")
+}
+
 // MARK: - Timeline entry
 
 struct SoonishEntry: TimelineEntry {
@@ -39,20 +47,22 @@ struct SoonishEntry: TimelineEntry {
 
 // MARK: - Timeline provider
 
-struct SoonishProvider: TimelineProvider {
+struct SoonishProvider: AppIntentTimelineProvider {
+    typealias Intent = SoonishWidgetIntent
+
     func placeholder(in context: Context) -> SoonishEntry {
         let now = Date()
         return SoonishEntry(date: now, displayTime: now.addingTimeInterval(10 * 60))
     }
 
-    func getSnapshot(in context: Context, completion: @escaping (SoonishEntry) -> Void) {
+    func snapshot(for configuration: SoonishWidgetIntent, in context: Context) async -> SoonishEntry {
         let now = Date()
         let settings = SoonishSettings.load()
         let display = now.addingTimeInterval(Double(settings.totalMinutes) * 60)
-        completion(SoonishEntry(date: now, displayTime: display))
+        return SoonishEntry(date: now, displayTime: display)
     }
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<SoonishEntry>) -> Void) {
+    func timeline(for configuration: SoonishWidgetIntent, in context: Context) async -> Timeline<SoonishEntry> {
         let settings = SoonishSettings.load()
         let now = Date()
         var entries: [SoonishEntry] = []
@@ -68,23 +78,26 @@ struct SoonishProvider: TimelineProvider {
 
         // Reload after 1 hour
         let reloadDate = Calendar.current.date(byAdding: .hour, value: 1, to: now)!
-        let timeline = Timeline(entries: entries, policy: .after(reloadDate))
-        completion(timeline)
+        return Timeline(entries: entries, policy: .after(reloadDate))
     }
 }
 
 // MARK: - Widget view
 
+private let timeFormatter: DateFormatter = {
+    let f = DateFormatter()
+    f.dateFormat = "HH:mm"
+    return f
+}()
+
 struct SoonishWidgetView: View {
     var entry: SoonishEntry
 
     var body: some View {
-        VStack(spacing: 2) {
-            Text(entry.displayTime, style: .time)
-                .font(.system(size: 48, weight: .thin, design: .rounded))
-                .minimumScaleFactor(0.6)
-        }
-        .containerBackground(.background, for: .widget)
+        Text(timeFormatter.string(from: entry.displayTime))
+            .font(.system(size: 48, weight: .thin, design: .rounded))
+            .minimumScaleFactor(0.5)
+            .containerBackground(.background, for: .widget)
     }
 }
 
@@ -94,7 +107,7 @@ struct SoonishWidget: Widget {
     let kind = "SoonishWidget"
 
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: SoonishProvider()) { entry in
+        AppIntentConfiguration(kind: kind, intent: SoonishWidgetIntent.self, provider: SoonishProvider()) { entry in
             SoonishWidgetView(entry: entry)
         }
         .configurationDisplayName("Soonish")
