@@ -1,228 +1,259 @@
 import { useEffect, useState } from 'react'
 import {
   Alert,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native'
-import { generateFuzz } from '../src/offsetLogic'
-import { validateSlot, type Slot } from '../src/scheduleLogic'
-import { saveSettings, loadSettings } from '../modules/soonish-widget'
+import { loadSettings, saveSettings } from '../modules/soonish-widget'
+import {
+  requestPermission,
+  scheduleAllNotifications,
+  calcNotifyMinutes,
+  formatHM,
+  type Schedule,
+} from '../src/notificationLogic'
 import i18n from '../src/i18n'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-interface AppSettings {
-  mode: 'fixed' | 'fuzzy'
-  offsetMinutes: number
-  fuzz: number
-  slots: Slot[]
+function newSchedule(): Schedule {
+  return {
+    id: String(Date.now()),
+    weekdays: [1, 2, 3, 4, 5],  // 月〜金
+    departureHour: 7,
+    departureMinute: 30,
+    offsetMinutes: 20,
+    fuzzMax: 5,
+  }
 }
-
-const PRESET_MINUTES = [5, 10, 15] as const
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function SettingsScreen() {
-  const [mode, setMode] = useState<'fixed' | 'fuzzy'>('fixed')
-  const [offsetMinutes, setOffsetMinutes] = useState(10)
-  const [customInput, setCustomInput] = useState('')
-  const [useCustom, setUseCustom] = useState(false)
-  const [slots, setSlots] = useState<Slot[]>([])
+  const [schedules, setSchedules] = useState<Schedule[]>([])
   const [saving, setSaving] = useState(false)
+  const [editing, setEditing] = useState<Schedule | null>(null)
 
   useEffect(() => {
     if (Platform.OS !== 'ios') return
     ;(async () => {
       const loaded = await loadSettings()
-      if (!loaded.isInitialized) {
-        // 初回起動: デフォルト値をウィジェットに書き込む
-        await saveSettings({ mode: 'fixed', offsetMinutes: 10, fuzz: 0, slots: [] })
-      } else {
-        // 保存済み設定をUIに反映
-        setMode(loaded.mode as 'fixed' | 'fuzzy')
-        const m = loaded.offsetMinutes as number
-        if (m === 5 || m === 10 || m === 15) {
-          setOffsetMinutes(m)
-          setUseCustom(false)
-        } else {
-          setOffsetMinutes(m)
-          setCustomInput(String(m))
-          setUseCustom(true)
-        }
+      if (loaded.isInitialized && loaded.schedulesJSON) {
+        try {
+          setSchedules(JSON.parse(loaded.schedulesJSON as string))
+        } catch {}
       }
     })()
   }, [])
 
-  // Slot editor state
-  const [slotFrom, setSlotFrom] = useState('07:00')
-  const [slotTo, setSlotTo] = useState('09:00')
-  const [slotOffset, setSlotOffset] = useState('10')
-
-  const effectiveMinutes = useCustom
-    ? parseInt(customInput, 10) || offsetMinutes
-    : offsetMinutes
-
-  async function handleSave() {
-    if (useCustom) {
-      const v = parseInt(customInput, 10)
-      if (isNaN(v) || v < 1 || v > 60) {
-        Alert.alert(i18n.t('save.errorTitle'), i18n.t('save.errorCustomOffset'))
-        return
-      }
-    }
-
+  async function handleSave(updatedSchedules: Schedule[]) {
     setSaving(true)
     try {
-      const fuzz = mode === 'fuzzy' ? generateFuzz(2) : 0
-      const settings: AppSettings = {
-        mode,
-        offsetMinutes: effectiveMinutes,
-        fuzz,
-        slots,
+      const granted = await requestPermission()
+      if (!granted) {
+        Alert.alert(i18n.t('save.errorTitle'), i18n.t('alarm.permissionDenied'))
+        return
       }
-      await saveSettings(settings)
-      Alert.alert(i18n.t('save.successTitle'), i18n.t('save.successMessage'))
+      await scheduleAllNotifications(
+        updatedSchedules,
+        i18n.t('alarm.notificationTitle'),
+        (time) => i18n.t('alarm.notificationBody', { time }),
+      )
+      await saveSettings({
+        mode: 'fuzzy',
+        offsetMinutes: 0,
+        fuzz: 0,
+        slots: [],
+        schedulesJSON: JSON.stringify(updatedSchedules),
+      })
+      setSchedules(updatedSchedules)
+      Alert.alert(i18n.t('save.successTitle'), i18n.t('alarm.scheduled'))
     } catch (e) {
-      if (Platform.OS === 'ios') {
-        const msg = e instanceof Error ? e.message : String(e)
-        Alert.alert(i18n.t('save.errorTitle'), msg)
-      } else {
-        Alert.alert(i18n.t('save.androidSuccess'))
-      }
+      const msg = e instanceof Error ? e.message : String(e)
+      Alert.alert(i18n.t('save.errorTitle'), msg)
     } finally {
       setSaving(false)
     }
   }
 
-  function handleAddSlot() {
-    const candidate = { from: slotFrom, to: slotTo, offset: parseInt(slotOffset, 10) || 0 }
-    if (!validateSlot(candidate)) {
-      Alert.alert(i18n.t('save.errorTitle'), i18n.t('save.slotError'))
-      return
-    }
-    setSlots(prev => [...prev, candidate])
+  function handleAdd() {
+    setEditing(newSchedule())
   }
 
-  function handleRemoveSlot(index: number) {
-    setSlots(prev => prev.filter((_, i) => i !== index))
+  function handleEdit(s: Schedule) {
+    setEditing({ ...s })
   }
+
+  function handleDelete(id: string) {
+    Alert.alert(i18n.t('alarm.deleteSchedule'), '', [
+      { text: i18n.t('slots.remove'), style: 'destructive', onPress: () => {
+        const updated = schedules.filter(s => s.id !== id)
+        handleSave(updated)
+      }},
+      { text: 'キャンセル', style: 'cancel' },
+    ])
+  }
+
+  function handleEditorSave(s: Schedule) {
+    const exists = schedules.find(x => x.id === s.id)
+    const updated = exists
+      ? schedules.map(x => x.id === s.id ? s : x)
+      : [...schedules, s]
+    setEditing(null)
+    handleSave(updated)
+  }
+
+  const days: string[] = i18n.t('alarm.days') as unknown as string[]
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+    <View style={styles.root}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+        {schedules.length === 0 && (
+          <Text style={styles.empty}>{i18n.t('alarm.noSchedules')}</Text>
+        )}
+        {schedules.map(s => {
+          const { hour, minute } = calcNotifyMinutes(s, 0)
+          return (
+            <View key={s.id} style={styles.card}>
+              <TouchableOpacity style={styles.cardBody} onPress={() => handleEdit(s)}>
+                <Text style={styles.cardTime}>
+                  {formatHM(s.departureHour, s.departureMinute)}
+                </Text>
+                <Text style={styles.cardSub}>
+                  {i18n.t('alarm.offsetTitle')}: {s.offsetMinutes}{i18n.t('offset.unit')}
+                  {'  '}±{s.fuzzMax}{i18n.t('offset.unit')}
+                </Text>
+                <Text style={styles.cardSub}>
+                  {i18n.t('alarm.notificationBody', { time: `${formatHM(hour, minute)} ± ${s.fuzzMax}${i18n.t('offset.unit')}` })}
+                </Text>
+                <View style={styles.dayRow}>
+                  {[0,1,2,3,4,5,6].map(d => (
+                    <View key={d} style={[styles.dayBadge, s.weekdays.includes(d) && styles.dayBadgeActive]}>
+                      <Text style={[styles.dayText, s.weekdays.includes(d) && styles.dayTextActive]}>
+                        {days[d]}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(s.id)}>
+                <Text style={styles.deleteBtnText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          )
+        })}
+      </ScrollView>
 
-      {/* ── Mode ── */}
-      <Section title={i18n.t('mode.title')}>
-        <Row label={i18n.t('mode.fuzzy')}>
-          <Switch
-            value={mode === 'fuzzy'}
-            onValueChange={v => setMode(v ? 'fuzzy' : 'fixed')}
-          />
-        </Row>
-        <Text style={styles.hint}>
-          {mode === 'fuzzy' ? i18n.t('mode.fuzzyHint') : i18n.t('mode.fixedHint')}
-        </Text>
-      </Section>
-
-      {/* ── Offset ── */}
-      <Section title={i18n.t('offset.title')}>
-        <View style={styles.presetRow}>
-          {PRESET_MINUTES.map(m => (
-            <TouchableOpacity
-              key={m}
-              style={[styles.preset, !useCustom && offsetMinutes === m && styles.presetActive]}
-              onPress={() => { setOffsetMinutes(m); setUseCustom(false) }}
-            >
-              <Text style={[styles.presetText, !useCustom && offsetMinutes === m && styles.presetTextActive]}>
-                {i18n.t('offset.minuteLabel', { count: m })}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        <View style={styles.customRow}>
-          <TouchableOpacity
-            style={[styles.preset, useCustom && styles.presetActive]}
-            onPress={() => setUseCustom(true)}
-          >
-            <Text style={[styles.presetText, useCustom && styles.presetTextActive]}>
-              {i18n.t('offset.custom')}
-            </Text>
-          </TouchableOpacity>
-          <TextInput
-            style={[styles.customInput, useCustom && styles.customInputActive]}
-            keyboardType="number-pad"
-            placeholder={i18n.t('offset.placeholder')}
-            value={customInput}
-            onChangeText={t => { setCustomInput(t); setUseCustom(true) }}
-            maxLength={2}
-          />
-          <Text style={styles.minLabel}>{i18n.t('offset.unit')}</Text>
-        </View>
-      </Section>
-
-      {/* ── Schedule slots ── */}
-      <Section title={i18n.t('slots.title')}>
-        <Text style={styles.hint}>{i18n.t('slots.hint')}</Text>
-
-        {slots.map((s, i) => (
-          <View key={i} style={styles.slotItem}>
-            <Text style={styles.slotText}>
-              {i18n.t('slots.itemLabel', { from: s.from, to: s.to, offset: s.offset })}
-            </Text>
-            <TouchableOpacity onPress={() => handleRemoveSlot(i)}>
-              <Text style={styles.removeBtn}>{i18n.t('slots.remove')}</Text>
-            </TouchableOpacity>
-          </View>
-        ))}
-
-        <View style={styles.slotEditor}>
-          <TextInput
-            style={styles.slotInput}
-            placeholder="07:00"
-            value={slotFrom}
-            onChangeText={setSlotFrom}
-            maxLength={5}
-          />
-          <Text style={styles.slotSep}>{i18n.t('slots.separator')}</Text>
-          <TextInput
-            style={styles.slotInput}
-            placeholder="09:00"
-            value={slotTo}
-            onChangeText={setSlotTo}
-            maxLength={5}
-          />
-          <TextInput
-            style={[styles.slotInput, styles.slotOffsetInput]}
-            placeholder="10"
-            keyboardType="number-pad"
-            value={slotOffset}
-            onChangeText={setSlotOffset}
-            maxLength={2}
-          />
-          <Text style={styles.minLabel}>{i18n.t('offset.unit')}</Text>
-          <TouchableOpacity style={styles.addBtn} onPress={handleAddSlot}>
-            <Text style={styles.addBtnText}>{i18n.t('slots.add')}</Text>
-          </TouchableOpacity>
-        </View>
-      </Section>
-
-      {/* ── Save ── */}
-      <TouchableOpacity
-        style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
-        onPress={handleSave}
-        disabled={saving}
-      >
-        <Text style={styles.saveBtnText}>
-          {saving ? i18n.t('save.saving') : i18n.t('save.button')}
-        </Text>
+      <TouchableOpacity style={styles.fab} onPress={handleAdd} disabled={saving}>
+        <Text style={styles.fabText}>＋</Text>
       </TouchableOpacity>
 
-    </ScrollView>
+      {editing && (
+        <ScheduleEditor
+          schedule={editing}
+          onSave={handleEditorSave}
+          onCancel={() => setEditing(null)}
+        />
+      )}
+    </View>
+  )
+}
+
+// ─── Schedule Editor Modal ────────────────────────────────────────────────────
+
+function ScheduleEditor({
+  schedule,
+  onSave,
+  onCancel,
+}: {
+  schedule: Schedule
+  onSave: (s: Schedule) => void
+  onCancel: () => void
+}) {
+  const [s, setS] = useState<Schedule>(schedule)
+  const days: string[] = i18n.t('alarm.days') as unknown as string[]
+
+  function toggleDay(d: number) {
+    setS(prev => ({
+      ...prev,
+      weekdays: prev.weekdays.includes(d)
+        ? prev.weekdays.filter(x => x !== d)
+        : [...prev.weekdays, d].sort(),
+    }))
+  }
+
+  const { hour, minute } = calcNotifyMinutes(s, 0)
+
+  return (
+    <Modal animationType="slide" presentationStyle="pageSheet">
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+
+        <Section title={i18n.t('alarm.title')}>
+          <View style={styles.timeRow}>
+            <Stepper value={s.departureHour} min={0} max={23}
+              onChange={v => setS(p => ({ ...p, departureHour: v }))}
+              format={v => String(v).padStart(2, '0')} />
+            <Text style={styles.timeSep}>:</Text>
+            <Stepper value={s.departureMinute} min={0} max={55} step={5}
+              onChange={v => setS(p => ({ ...p, departureMinute: v }))}
+              format={v => String(v).padStart(2, '0')} />
+          </View>
+        </Section>
+
+        <Section title={i18n.t('alarm.weekdays')}>
+          <View style={styles.dayRow}>
+            {[0,1,2,3,4,5,6].map(d => (
+              <TouchableOpacity key={d}
+                style={[styles.dayBadge, s.weekdays.includes(d) && styles.dayBadgeActive]}
+                onPress={() => toggleDay(d)}
+              >
+                <Text style={[styles.dayText, s.weekdays.includes(d) && styles.dayTextActive]}>
+                  {days[d]}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Section>
+
+        <Section title={i18n.t('alarm.offsetTitle')}>
+          <View style={styles.stepperRow}>
+            <Stepper value={s.offsetMinutes} min={1} max={60}
+              onChange={v => setS(p => ({ ...p, offsetMinutes: v }))} />
+            <Text style={styles.unit}>{i18n.t('offset.unit')}</Text>
+          </View>
+        </Section>
+
+        <Section title={i18n.t('alarm.fuzzTitle')}>
+          <View style={styles.stepperRow}>
+            <Stepper value={s.fuzzMax} min={0} max={15}
+              onChange={v => setS(p => ({ ...p, fuzzMax: v }))} />
+            <Text style={styles.unit}>{i18n.t('offset.unit')}</Text>
+          </View>
+          <Text style={styles.hint}>{i18n.t('alarm.fuzzHint')}</Text>
+          <Text style={styles.preview}>
+            {i18n.t('alarm.notificationBody', { time: `${formatHM(hour, minute)} ± ${s.fuzzMax}${i18n.t('offset.unit')}` })}
+          </Text>
+        </Section>
+
+        <View style={styles.editorBtns}>
+          <TouchableOpacity style={styles.cancelBtn} onPress={onCancel}>
+            <Text style={styles.cancelBtnText}>キャンセル</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.saveBtn, s.weekdays.length === 0 && styles.saveBtnDisabled]}
+            onPress={() => s.weekdays.length > 0 && onSave(s)}
+          >
+            <Text style={styles.saveBtnText}>{i18n.t('save.button')}</Text>
+          </TouchableOpacity>
+        </View>
+
+      </ScrollView>
+    </Modal>
   )
 }
 
@@ -237,11 +268,22 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
+function Stepper({
+  value, min, max, step = 1, onChange,
+  format = (v) => String(v),
+}: {
+  value: number; min: number; max: number; step?: number
+  onChange: (v: number) => void; format?: (v: number) => string
+}) {
   return (
-    <View style={styles.row}>
-      <Text style={styles.rowLabel}>{label}</Text>
-      {children}
+    <View style={styles.stepper}>
+      <TouchableOpacity style={styles.stepBtn} onPress={() => onChange(Math.max(min, value - step))}>
+        <Text style={styles.stepBtnText}>−</Text>
+      </TouchableOpacity>
+      <Text style={styles.stepValue}>{format(value)}</Text>
+      <TouchableOpacity style={styles.stepBtn} onPress={() => onChange(Math.min(max, value + step))}>
+        <Text style={styles.stepBtnText}>＋</Text>
+      </TouchableOpacity>
     </View>
   )
 }
@@ -249,95 +291,83 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: '#f2f2f7' },
-  content: { padding: 20, paddingBottom: 60 },
+  root: { flex: 1, backgroundColor: '#f2f2f7' },
+  scroll: { flex: 1 },
+  content: { padding: 20, paddingBottom: 100 },
 
-  section: {
+  empty: { textAlign: 'center', color: '#8e8e93', marginTop: 60, fontSize: 15 },
+
+  card: {
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'stretch',
+  },
+  cardBody: { flex: 1, padding: 16 },
+  cardTime: { fontSize: 36, fontWeight: '200', color: '#000', marginBottom: 4 },
+  cardSub: { fontSize: 13, color: '#6e6e73', marginBottom: 2 },
+
+  dayRow: { flexDirection: 'row', gap: 4, marginTop: 8 },
+  dayBadge: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: '#f2f2f7',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  dayBadgeActive: { backgroundColor: '#007aff' },
+  dayText: { fontSize: 12, color: '#8e8e93' },
+  dayTextActive: { color: '#fff', fontWeight: '600' },
+
+  deleteBtn: { padding: 16, justifyContent: 'center' },
+  deleteBtnText: { fontSize: 18, color: '#ff3b30' },
+
+  fab: {
+    position: 'absolute', right: 24, bottom: 40,
+    width: 56, height: 56, borderRadius: 28,
+    backgroundColor: '#007aff',
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25, shadowRadius: 4, elevation: 5,
+  },
+  fabText: { fontSize: 28, color: '#fff', lineHeight: 32 },
+
+  section: {
+    backgroundColor: '#fff', borderRadius: 12,
+    padding: 16, marginBottom: 20,
   },
   sectionTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#6e6e73',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 12,
+    fontSize: 13, fontWeight: '600', color: '#6e6e73',
+    textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12,
   },
 
   hint: { fontSize: 13, color: '#8e8e93', lineHeight: 18, marginTop: 8 },
+  preview: { fontSize: 14, color: '#007aff', marginTop: 6 },
 
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  rowLabel: { fontSize: 16, color: '#000', flex: 1 },
+  timeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  timeSep: { fontSize: 32, fontWeight: '200', color: '#000' },
 
-  presetRow: { flexDirection: 'row', gap: 8 },
-  preset: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 8,
+  stepperRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  unit: { fontSize: 15, color: '#3c3c43' },
+
+  stepper: { flexDirection: 'row', alignItems: 'center' },
+  stepBtn: {
+    width: 44, height: 44, borderRadius: 22,
     backgroundColor: '#f2f2f7',
-    alignItems: 'center',
+    alignItems: 'center', justifyContent: 'center',
   },
-  presetActive: { backgroundColor: '#007aff' },
-  presetText: { fontSize: 15, color: '#000' },
-  presetTextActive: { color: '#fff', fontWeight: '600' },
+  stepBtnText: { fontSize: 20, color: '#007aff' },
+  stepValue: { width: 56, textAlign: 'center', fontSize: 24, fontWeight: '200', color: '#000' },
 
-  customRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
-  customInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#d1d1d6',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    fontSize: 15,
-    backgroundColor: '#f2f2f7',
-    color: '#000',
+  editorBtns: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  cancelBtn: {
+    flex: 1, borderRadius: 14, paddingVertical: 16,
+    alignItems: 'center', backgroundColor: '#f2f2f7',
   },
-  customInputActive: { borderColor: '#007aff', backgroundColor: '#fff' },
-  minLabel: { fontSize: 15, color: '#3c3c43' },
-
-  slotItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#d1d1d6',
-  },
-  slotText: { fontSize: 15, color: '#000' },
-  removeBtn: { fontSize: 14, color: '#ff3b30' },
-
-  slotEditor: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 12, flexWrap: 'wrap' },
-  slotInput: {
-    borderWidth: 1,
-    borderColor: '#d1d1d6',
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    fontSize: 14,
-    backgroundColor: '#f2f2f7',
-    width: 70,
-    color: '#000',
-  },
-  slotOffsetInput: { width: 45 },
-  slotSep: { fontSize: 15, color: '#3c3c43' },
-  addBtn: {
-    backgroundColor: '#34c759',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  addBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
-
+  cancelBtnText: { fontSize: 17, color: '#3c3c43' },
   saveBtn: {
-    backgroundColor: '#007aff',
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
+    flex: 2, backgroundColor: '#007aff',
+    borderRadius: 14, paddingVertical: 16, alignItems: 'center',
   },
-  saveBtnDisabled: { opacity: 0.6 },
+  saveBtnDisabled: { opacity: 0.4 },
   saveBtnText: { color: '#fff', fontSize: 17, fontWeight: '600' },
 })

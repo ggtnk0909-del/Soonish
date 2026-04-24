@@ -26,6 +26,21 @@ public class SoonishWidgetModule: Module {
       if let slotsJSON = args["slotsJSON"] as? String {
         defaults.set(slotsJSON, forKey: "slotsJSON")
       }
+      if let departureHour = args["departureHour"] as? Int {
+        defaults.set(departureHour, forKey: "departureHour")
+      }
+      if let departureMinute = args["departureMinute"] as? Int {
+        defaults.set(departureMinute, forKey: "departureMinute")
+      }
+      if let fuzzMax = args["fuzzMax"] as? Int {
+        defaults.set(fuzzMax, forKey: "fuzzMax")
+      }
+      if let todayNotifyTime = args["todayNotifyTime"] as? String {
+        defaults.set(todayNotifyTime, forKey: "todayNotifyTime")
+      }
+      if let schedulesJSON = args["schedulesJSON"] as? String {
+        defaults.set(schedulesJSON, forKey: "schedulesJSON")
+      }
 
       defaults.synchronize()
       WidgetCenter.shared.reloadAllTimelines()
@@ -36,15 +51,11 @@ public class SoonishWidgetModule: Module {
       guard let defaults = UserDefaults(suiteName: appGroupID) else {
         return ["isInitialized": false, "offsetMinutes": 10, "mode": "fixed", "fuzz": 0]
       }
-      let isInitialized = defaults.object(forKey: "offsetMinutes") != nil
-      let offset = defaults.integer(forKey: "offsetMinutes")
-      let mode   = defaults.string(forKey: "mode") ?? "fixed"
-      let fuzz   = defaults.integer(forKey: "fuzz")
+      let isInitialized = defaults.object(forKey: "schedulesJSON") != nil
       return [
         "isInitialized": isInitialized,
-        "offsetMinutes": isInitialized ? offset : 10,
-        "mode": mode,
-        "fuzz": fuzz,
+        "schedulesJSON": defaults.string(forKey: "schedulesJSON") as Any,
+        "todayNotifyTime": defaults.string(forKey: "todayNotifyTime") as Any,
       ]
     }
   }
