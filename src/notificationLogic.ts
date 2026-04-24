@@ -41,16 +41,30 @@ export async function requestPermission(): Promise<boolean> {
  * 既存の通知を全キャンセルしてから、各スケジュール×曜日で登録。
  * ふんわりのため、毎回 fuzz を再計算する。
  */
+/**
+ * 全スケジュールの通知を再登録し、今日に該当するスケジュールの通知時刻を返す。
+ * 今日に該当するスケジュールが複数ある場合は最も早い通知時刻を返す。
+ */
 export async function scheduleAllNotifications(
   schedules: Schedule[],
   titleText: string,
   bodyText: (time: string) => string,
-): Promise<void> {
+): Promise<string | null> {
   await Notifications.cancelAllScheduledNotificationsAsync()
+
+  const todayWeekday = new Date().getDay()  // 0=日, 1=月, ..., 6=土
+  let todayNotifyMinutes: number | null = null
 
   for (const schedule of schedules) {
     const fuzz = schedule.fuzzMax > 0 ? generateFuzz(schedule.fuzzMax) : 0
     const { hour, minute } = calcNotifyMinutes(schedule, fuzz)
+
+    if (schedule.weekdays.includes(todayWeekday)) {
+      const total = hour * 60 + minute
+      if (todayNotifyMinutes === null || total < todayNotifyMinutes) {
+        todayNotifyMinutes = total
+      }
+    }
 
     for (const weekday of schedule.weekdays) {
       // expo-notifications: weekday 1=日, 2=月, ..., 7=土
@@ -69,4 +83,7 @@ export async function scheduleAllNotifications(
       })
     }
   }
+
+  if (todayNotifyMinutes === null) return null
+  return formatHM(Math.floor(todayNotifyMinutes / 60), todayNotifyMinutes % 60)
 }

@@ -25,7 +25,7 @@ const translations = {
       itemLabel: '%{from} – %{to}  +%{offset} min',
     },
     save: {
-      button: 'Save & update widget',
+      button: 'Set notification',
       saving: 'Saving…',
       successTitle: 'Saved',
       successMessage: 'Widget will be updated.',
@@ -55,6 +55,9 @@ const translations = {
       weekdays: 'Days',
       noSchedules: 'No schedules yet. Tap + to add one.',
       days: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+      minBuffer: 'At latest, %{min} min before departure',
+      scheduleDesc: 'Notify at %{notifyTime} (%{offset} min before), ±%{fuzz} min random',
+      scheduleDescFixed: 'Notify at %{notifyTime} (%{offset} min before departure)',
     },
   },
   ja: {
@@ -80,7 +83,7 @@ const translations = {
       itemLabel: '%{from} 〜 %{to}　+%{offset}分',
     },
     save: {
-      button: '保存してウィジェットに反映',
+      button: '通知を設定',
       saving: '保存中…',
       successTitle: '保存しました',
       successMessage: 'ウィジェットに反映されます',
@@ -110,13 +113,16 @@ const translations = {
       weekdays: '曜日',
       noSchedules: 'スケジュールがありません。＋で追加してください。',
       days: ['日', '月', '火', '水', '木', '金', '土'],
+      minBuffer: '最遅でも出発%{min}分前に通知',
+      scheduleDesc: '%{notifyTime}（出発%{offset}分前）±%{fuzz}分でランダムに通知',
+      scheduleDescFixed: '%{notifyTime}（出発%{offset}分前）に通知',
     },
   },
 }
 
 const i18n = new I18n(translations)
-i18n.locale = Localization.getLocales()[0]?.languageCode ?? 'en'
+i18n.locale = Localization.getLocales()[0]?.languageCode ?? 'ja'
 i18n.enableFallback = true
-i18n.defaultLocale = 'en'
+i18n.defaultLocale = 'ja'
 
 export default i18n

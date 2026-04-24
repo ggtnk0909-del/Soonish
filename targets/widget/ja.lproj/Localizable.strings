@@ -1,2 +1,8 @@
 /* Widget intent description */
 "widget.description" = "少し先の時刻を表示して遅刻を防ぎます。";
+
+/* Widget schedule parameter label */
+"widget.selectSchedule" = "スケジュール";
+
+/* Widget offset subtitle: %d = minutes before departure */
+"widget.offsetLabel" = "出発%d分前";

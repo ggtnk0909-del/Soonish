@@ -59,7 +59,7 @@ export default function SettingsScreen() {
         Alert.alert(i18n.t('save.errorTitle'), i18n.t('alarm.permissionDenied'))
         return
       }
-      await scheduleAllNotifications(
+      const todayNotifyTime = await scheduleAllNotifications(
         updatedSchedules,
         i18n.t('alarm.notificationTitle'),
         (time) => i18n.t('alarm.notificationBody', { time }),
@@ -70,6 +70,7 @@ export default function SettingsScreen() {
         fuzz: 0,
         slots: [],
         schedulesJSON: JSON.stringify(updatedSchedules),
+        todayNotifyTime: todayNotifyTime ?? '--:--',
       })
       setSchedules(updatedSchedules)
       Alert.alert(i18n.t('save.successTitle'), i18n.t('alarm.scheduled'))
@@ -125,11 +126,10 @@ export default function SettingsScreen() {
                   {formatHM(s.departureHour, s.departureMinute)}
                 </Text>
                 <Text style={styles.cardSub}>
-                  {i18n.t('alarm.offsetTitle')}: {s.offsetMinutes}{i18n.t('offset.unit')}
-                  {'  '}±{s.fuzzMax}{i18n.t('offset.unit')}
-                </Text>
-                <Text style={styles.cardSub}>
-                  {i18n.t('alarm.notificationBody', { time: `${formatHM(hour, minute)} ± ${s.fuzzMax}${i18n.t('offset.unit')}` })}
+                  {s.fuzzMax > 0
+                    ? i18n.t('alarm.scheduleDesc', { notifyTime: formatHM(hour, minute), offset: s.offsetMinutes, fuzz: s.fuzzMax })
+                    : i18n.t('alarm.scheduleDescFixed', { notifyTime: formatHM(hour, minute), offset: s.offsetMinutes })
+                  }
                 </Text>
                 <View style={styles.dayRow}>
                   {[0,1,2,3,4,5,6].map(d => (
@@ -193,15 +193,62 @@ function ScheduleEditor({
     <Modal animationType="slide" presentationStyle="pageSheet">
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 
+        {/* 通知時刻プレビュー（メイン表示） */}
+        {(() => {
+          const base = calcNotifyMinutes(s, 0)
+          const early = calcNotifyMinutes(s, -s.fuzzMax)
+          const late = calcNotifyMinutes(s, s.fuzzMax)
+          const buffer = s.offsetMinutes - s.fuzzMax
+          return (
+            <View style={styles.notifyPreviewCard}>
+              <Text style={styles.notifyPreviewTime}>
+                {formatHM(s.departureHour, s.departureMinute)}
+              </Text>
+              <Text style={styles.notifyPreviewBase}>
+                {s.fuzzMax > 0
+                  ? i18n.t('alarm.scheduleDesc', { notifyTime: formatHM(base.hour, base.minute), offset: s.offsetMinutes, fuzz: s.fuzzMax })
+                  : i18n.t('alarm.scheduleDescFixed', { notifyTime: formatHM(base.hour, base.minute), offset: s.offsetMinutes })
+                }
+              </Text>
+              {s.fuzzMax > 0 && (
+                <Text style={styles.notifyPreviewFuzz}>
+                  {formatHM(early.hour, early.minute)} 〜 {formatHM(late.hour, late.minute)}
+                </Text>
+              )}
+              {s.fuzzMax > 0 && (
+                <Text style={[styles.notifyPreviewBuffer, buffer <= 5 && styles.notifyPreviewBufferWarn]}>
+                  {i18n.t('alarm.minBuffer', { min: buffer })}
+                </Text>
+              )}
+            </View>
+          )
+        })()}
+
         <Section title={i18n.t('alarm.title')}>
           <View style={styles.timeRow}>
             <Stepper value={s.departureHour} min={0} max={23}
               onChange={v => setS(p => ({ ...p, departureHour: v }))}
               format={v => String(v).padStart(2, '0')} />
             <Text style={styles.timeSep}>:</Text>
-            <Stepper value={s.departureMinute} min={0} max={55} step={5}
+            <Stepper value={s.departureMinute} min={0} max={59} step={1}
               onChange={v => setS(p => ({ ...p, departureMinute: v }))}
               format={v => String(v).padStart(2, '0')} />
+          </View>
+        </Section>
+
+        <Section title={i18n.t('alarm.offsetTitle')}>
+          <View style={styles.stepperRow}>
+            <Stepper value={s.offsetMinutes} min={s.fuzzMax + 1} max={60}
+              onChange={v => setS(p => ({ ...p, offsetMinutes: v }))} />
+            <Text style={styles.unit}>{i18n.t('offset.unit')}</Text>
+          </View>
+        </Section>
+
+        <Section title={i18n.t('alarm.fuzzTitle')}>
+          <View style={styles.stepperRow}>
+            <Stepper value={s.fuzzMax} min={0} max={s.offsetMinutes - 1}
+              onChange={v => setS(p => ({ ...p, fuzzMax: v }))} />
+            <Text style={styles.unit}>{i18n.t('offset.unit')}</Text>
           </View>
         </Section>
 
@@ -218,26 +265,6 @@ function ScheduleEditor({
               </TouchableOpacity>
             ))}
           </View>
-        </Section>
-
-        <Section title={i18n.t('alarm.offsetTitle')}>
-          <View style={styles.stepperRow}>
-            <Stepper value={s.offsetMinutes} min={1} max={60}
-              onChange={v => setS(p => ({ ...p, offsetMinutes: v }))} />
-            <Text style={styles.unit}>{i18n.t('offset.unit')}</Text>
-          </View>
-        </Section>
-
-        <Section title={i18n.t('alarm.fuzzTitle')}>
-          <View style={styles.stepperRow}>
-            <Stepper value={s.fuzzMax} min={0} max={15}
-              onChange={v => setS(p => ({ ...p, fuzzMax: v }))} />
-            <Text style={styles.unit}>{i18n.t('offset.unit')}</Text>
-          </View>
-          <Text style={styles.hint}>{i18n.t('alarm.fuzzHint')}</Text>
-          <Text style={styles.preview}>
-            {i18n.t('alarm.notificationBody', { time: `${formatHM(hour, minute)} ± ${s.fuzzMax}${i18n.t('offset.unit')}` })}
-          </Text>
         </Section>
 
         <View style={styles.editorBtns}>
@@ -271,18 +298,26 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Stepper({
   value, min, max, step = 1, onChange,
   format = (v) => String(v),
+  large = false,
 }: {
   value: number; min: number; max: number; step?: number
   onChange: (v: number) => void; format?: (v: number) => string
+  large?: boolean
 }) {
   return (
     <View style={styles.stepper}>
-      <TouchableOpacity style={styles.stepBtn} onPress={() => onChange(Math.max(min, value - step))}>
-        <Text style={styles.stepBtnText}>−</Text>
+      <TouchableOpacity
+        style={large ? styles.stepBtnLarge : styles.stepBtn}
+        onPress={() => onChange(Math.max(min, value - step))}
+      >
+        <Text style={large ? styles.stepBtnTextLarge : styles.stepBtnText}>−</Text>
       </TouchableOpacity>
-      <Text style={styles.stepValue}>{format(value)}</Text>
-      <TouchableOpacity style={styles.stepBtn} onPress={() => onChange(Math.min(max, value + step))}>
-        <Text style={styles.stepBtnText}>＋</Text>
+      <Text style={large ? styles.stepValueLarge : styles.stepValue}>{format(value)}</Text>
+      <TouchableOpacity
+        style={large ? styles.stepBtnLarge : styles.stepBtn}
+        onPress={() => onChange(Math.min(max, value + step))}
+      >
+        <Text style={large ? styles.stepBtnTextLarge : styles.stepBtnText}>＋</Text>
       </TouchableOpacity>
     </View>
   )
@@ -357,6 +392,20 @@ const styles = StyleSheet.create({
   },
   stepBtnText: { fontSize: 20, color: '#007aff' },
   stepValue: { width: 56, textAlign: 'center', fontSize: 24, fontWeight: '200', color: '#000' },
+
+  notifyPreviewCard: {
+    backgroundColor: '#007aff',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  notifyPreviewLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 13, marginBottom: 4 },
+  notifyPreviewTime: { color: '#fff', fontSize: 72, fontWeight: '100', lineHeight: 80 },
+  notifyPreviewBase: { color: 'rgba(255,255,255,0.9)', fontSize: 15, marginTop: 8 },
+  notifyPreviewFuzz: { color: 'rgba(255,255,255,0.6)', fontSize: 13, marginTop: 2 },
+  notifyPreviewBuffer: { color: 'rgba(255,255,255,0.6)', fontSize: 13, marginTop: 6 },
+  notifyPreviewBufferWarn: { color: '#ffd60a' },
 
   editorBtns: { flexDirection: 'row', gap: 12, marginTop: 8 },
   cancelBtn: {

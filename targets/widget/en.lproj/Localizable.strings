@@ -1,2 +1,8 @@
 /* Widget intent description */
 "widget.description" = "Displays a slightly future time to help you avoid being late.";
+
+/* Widget schedule parameter label */
+"widget.selectSchedule" = "Schedule";
+
+/* Widget offset subtitle: %d = minutes before departure */
+"widget.offsetLabel" = "%d min before departure";
