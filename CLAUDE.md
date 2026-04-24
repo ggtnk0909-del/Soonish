@@ -2,9 +2,14 @@
 
 ## 目的
 
-現在時刻より少し先の時刻を表示する iOS アプリ＋ホーム画面ウィジェット。
-「時計を意図的にずらして遅刻を防ぐ」体験を提供する。
-ウィジェットには先の時刻だけ表示し、設定画面にオフセット値を隠すことで「どうせずらしてる」という慣れを防ぐ設計。
+「出発時刻にランダム性を持たせた通知」で、毎朝ギリギリの時間設定による疲弊を防ぐ iOS アプリ。
+
+**コンセプトの変遷:**
+- 当初: ウィジェットに「少し先の時刻」を表示してユーザーを騙す設計
+- 変更理由: iOSのロック画面は時刻を消せないため、ずらした時刻と本物が並んで見えて効果が薄い
+- 現行: 「家を出る時刻」を登録し、毎日ランダムにずれた時刻でローカル通知を鳴らす
+  - 例: 7:30出発 / 20分前通知 / ±5分 → ある日は7:06、別の日は7:14に通知
+  - 慣れを防ぎ、時間的余裕が生まれるという仮説。リリース後のフィードバックで検証予定。
 
 ## 技術スタック
 
@@ -13,56 +18,50 @@
 - カスタム Native Module: Expo Modules Core
 - App Group: `group.com.hidet.soonish` で UserDefaults を共有
 - 多言語対応: expo-localization + i18n-js（日本語・英語）
+- 通知: expo-notifications（ローカル通知、曜日指定weeklyトリガー）
 - テスト: Jest + ts-jest
 
 ## 主要ファイル
 
 | パス | 役割 |
 |------|------|
-| `app/index.tsx` | 設定画面（モード・オフセット・スロット・保存ボタン） |
+| `app/index.tsx` | スケジュール一覧画面（複数スケジュール管理・追加・編集・削除） |
 | `app/peek.tsx` | 「本当の時刻」を3秒だけ表示するピーク画面 |
 | `src/i18n.ts` | 翻訳定義（日本語・英語）とロケール初期化 |
-| `src/offsetLogic.ts` | `getDisplayTime` / `generateFuzz` のロジック |
-| `src/scheduleLogic.ts` | `Slot` 型・`getActiveSlot` / `validateSlot` |
-| `modules/soonish-widget/index.ts` | JS 側の `saveSettings` ラッパー |
-| `modules/soonish-widget/ios/SoonishWidgetModule.swift` | UserDefaults 書き込み + `WidgetCenter.reloadAllTimelines()` |
+| `src/notificationLogic.ts` | 通知スケジュール計算・登録ロジック |
+| `src/offsetLogic.ts` | `generateFuzz` のロジック |
+| `modules/soonish-widget/index.ts` | JS 側の `saveSettings` / `loadSettings` ラッパー |
+| `modules/soonish-widget/ios/SoonishWidgetModule.swift` | UserDefaults 読み書き + `WidgetCenter.reloadAllTimelines()` |
 | `targets/widget/widgets.swift` | WidgetKit タイムライン・ビュー実装 |
 | `targets/widget/index.swift` | `@main` ウィジェットバンドル |
 
 ## 機能仕様（v1）
 
-- **モード:** `fixed`（固定）/ `fuzzy`（±2分ランダム、毎日変わる想定）
-- **オフセット:** 5 / 10 / 15 分プリセット or カスタム (1〜60)
-- **スロット:** 時間帯ごとに別オフセットを設定可能（日またぎ未対応）
+- **スケジュール:** 複数登録可能。各スケジュールに曜日・出発時刻・通知前オフセット・ふんわり幅を設定
+- **ふんわりモード:** 毎回 `generateFuzz(fuzzMax)` でランダムにずらした時刻で通知
+- **通知:** expo-notifications の weekly トリガーで曜日ごとに登録
+- **ウィジェット:** 今日の通知予定時刻を表示（App Group 経由）
 - **ウィジェット対応サイズ:** systemSmall / accessoryCircular / accessoryRectangular
-- **Android:** ウィジェット未実装（`saveSettings` は Android では no-op）
+- **Android:** 未実装（`saveSettings` は no-op）
 
 ## 現在の進捗
 
-- 基本実装（設定画面・ウィジェット表示）は完了
-- 多言語対応（日本語・英語）完了 ※ npm install が必要
+- スケジュール管理UI（追加・編集・削除・曜日選択）完了
+- 多言語対応（日本語・英語）完了
 - Mac のシミュレータで動作確認中
 - Apple Developer への登録申請中（メール待ち）→ Team ID が確定したら実機テストへ
 
 ## 残タスク
 
-### 優先度高（Team ID 待ちの間に対応予定）
+### 優先度高
 
-1. **スロットをウィジェットに反映する**
-   - `SoonishWidgetModule.swift` は `slotsJSON` を UserDefaults に保存しているが
-   - `targets/widget/widgets.swift` 側で読み取っていない
-   - `SoonishSettings` に `slots` のパースを追加し、`getTimeline` で時間帯マッチングを行う
-
-2. **fuzz の毎日リセット**
-   - 現状は「保存ボタンを押したとき」にしか fuzz が更新されない
-   - ウィジェットのタイムライン更新タイミングで日付チェックし、日付が変わっていたら再計算する仕組みが必要
-
-3. **widgets.swift の説明文ローカライズ**
-   - `.description("少し先の時刻を表示して遅刻を防ぎます。")` を Xcode の Localizable.strings で対応
+1. **実機での通知動作確認**（シミュレータでは通知のテストが難しい）
+2. **ウィジェット表示の改善**（今日のスケジュール通知時刻を正しく反映）
+3. **peek画面の活用検討**（現在は本当の時刻表示のまま）
 
 ### Team ID 確定後
 
 4. `app.json` の `appleTeamId: "XXXXXXXXXX"` を実際の値に変更
 5. Xcode で App Group capability を追加（アプリ本体・ウィジェット拡張の両方）
 6. `expo prebuild` → Xcode ビルド → 実機インストール
-7. 実機でウィジェット動作確認（ホーム画面・ロック画面）
+7. 実機でウィジェット・通知動作確認
