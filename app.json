@@ -3,6 +3,7 @@
     "name": "Soonish",
     "slug": "Soonish",
     "version": "1.0.0",
+    "scheme": "soonish",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
