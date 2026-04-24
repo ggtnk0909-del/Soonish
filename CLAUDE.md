@@ -17,7 +17,7 @@
 - iOS ウィジェット: SwiftUI / WidgetKit
 - カスタム Native Module: Expo Modules Core
 - App Group: `group.com.hidet.soonish` で UserDefaults を共有
-- 多言語対応: expo-localization + i18n-js（日本語・英語）
+- 多言語対応: expo-localization + i18n-js（日本語・英語、デフォルト日本語）
 - 通知: expo-notifications（ローカル通知、曜日指定weeklyトリガー）
 - テスト: Jest + ts-jest
 
@@ -28,11 +28,11 @@
 | `app/index.tsx` | スケジュール一覧画面（複数スケジュール管理・追加・編集・削除） |
 | `app/peek.tsx` | 「本当の時刻」を3秒だけ表示するピーク画面 |
 | `src/i18n.ts` | 翻訳定義（日本語・英語）とロケール初期化 |
-| `src/notificationLogic.ts` | 通知スケジュール計算・登録ロジック |
+| `src/notificationLogic.ts` | 通知スケジュール計算・登録ロジック。保存時に今日の通知時刻を返す |
 | `src/offsetLogic.ts` | `generateFuzz` のロジック |
 | `modules/soonish-widget/index.ts` | JS 側の `saveSettings` / `loadSettings` ラッパー |
 | `modules/soonish-widget/ios/SoonishWidgetModule.swift` | UserDefaults 読み書き + `WidgetCenter.reloadAllTimelines()` |
-| `targets/widget/widgets.swift` | WidgetKit タイムライン・ビュー実装 |
+| `targets/widget/widgets.swift` | WidgetKit タイムライン・ビュー実装。`schedulesJSON` から直接計算 |
 | `targets/widget/index.swift` | `@main` ウィジェットバンドル |
 
 ## 機能仕様（v1）
@@ -40,15 +40,18 @@
 - **スケジュール:** 複数登録可能。各スケジュールに曜日・出発時刻・通知前オフセット・ふんわり幅を設定
 - **ふんわりモード:** 毎回 `generateFuzz(fuzzMax)` でランダムにずらした時刻で通知
 - **通知:** expo-notifications の weekly トリガーで曜日ごとに登録
-- **ウィジェット:** 今日の通知予定時刻を表示（App Group 経由）
+- **UI:** 一覧カード・編集画面の青枠ともに「7:06（出発19分前）±5分でランダムに通知」形式で表示。バッファが5分以下は黄色警告
+- **ウィジェット:** `schedulesJSON` から今日の曜日に該当するスケジュールの通知時刻を計算して表示。該当なしのとき次の直近曜日の時刻を表示。「出発XX分前」サブテキスト付き
+- **ウィジェット設定:** 長押し→編集でスケジュールを選択可能（AppIntent + EntityQuery、実機・App Group設定後に有効）
 - **ウィジェット対応サイズ:** systemSmall / accessoryCircular / accessoryRectangular
+- **言語切り替え:** 端末の言語設定に自動追従。デフォルトフォールバックは日本語
 - **Android:** 未実装（`saveSettings` は no-op）
 
 ## 現在の進捗
 
 - スケジュール管理UI（追加・編集・削除・曜日選択）完了
-- 多言語対応（日本語・英語）完了
-- Mac のシミュレータで動作確認中
+- 多言語対応（日本語・英語）完了、シミュレータで日英両方確認済み
+- ウィジェットUI改善・スケジュール選択機能実装済み
 - Apple Developer への登録申請中（メール待ち）→ Team ID が確定したら実機テストへ
 
 ## 残タスク
@@ -56,7 +59,7 @@
 ### 優先度高
 
 1. **実機での通知動作確認**（シミュレータでは通知のテストが難しい）
-2. **ウィジェット表示の改善**（今日のスケジュール通知時刻を正しく反映）
+2. **ウィジェットスケジュール選択の動作確認**（App Group が有効な実機でのみ確認可能）
 3. **peek画面の活用検討**（現在は本当の時刻表示のまま）
 
 ### Team ID 確定後
