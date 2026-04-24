@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { router } from 'expo-router'
+import i18n from '../src/i18n'
 
 export default function PeekScreen() {
   const [now, setNow] = useState(new Date())
 
   useEffect(() => {
-    // Update clock every second while shown
     const tick = setInterval(() => setNow(new Date()), 1000)
-    // Navigate back to settings after 3 seconds
     const dismiss = setTimeout(() => router.replace('/'), 3000)
     return () => {
       clearInterval(tick)
@@ -22,9 +21,9 @@ export default function PeekScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>本当の時刻</Text>
+      <Text style={styles.label}>{i18n.t('peek.label')}</Text>
       <Text style={styles.time}>{hh}:{mm}:{ss}</Text>
-      <Text style={styles.hint}>3秒後に閉じます</Text>
+      <Text style={styles.hint}>{i18n.t('peek.hint')}</Text>
     </View>
   )
 }

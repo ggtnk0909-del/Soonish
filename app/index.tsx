@@ -13,6 +13,7 @@ import {
 import { generateFuzz } from '../src/offsetLogic'
 import { validateSlot, type Slot } from '../src/scheduleLogic'
 import { saveSettings } from '../modules/soonish-widget'
+import i18n from '../src/i18n'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -48,7 +49,7 @@ export default function SettingsScreen() {
     if (useCustom) {
       const v = parseInt(customInput, 10)
       if (isNaN(v) || v < 1 || v > 60) {
-        Alert.alert('エラー', 'カスタムオフセットは 1〜60 分で指定してください')
+        Alert.alert(i18n.t('save.errorTitle'), i18n.t('save.errorCustomOffset'))
         return
       }
     }
@@ -63,13 +64,12 @@ export default function SettingsScreen() {
         slots,
       }
       await saveSettings(settings)
-      Alert.alert('保存しました', 'ウィジェットに反映されます')
+      Alert.alert(i18n.t('save.successTitle'), i18n.t('save.successMessage'))
     } catch (e) {
       if (Platform.OS === 'ios') {
-        Alert.alert('エラー', '設定の保存に失敗しました。\nApp Group が設定されているか確認してください。')
+        Alert.alert(i18n.t('save.errorTitle'), i18n.t('save.errorSaveFailed'))
       } else {
-        // Android: native module not yet implemented — just acknowledge
-        Alert.alert('保存しました（Android はウィジェット未対応）')
+        Alert.alert(i18n.t('save.androidSuccess'))
       }
     } finally {
       setSaving(false)
@@ -79,7 +79,7 @@ export default function SettingsScreen() {
   function handleAddSlot() {
     const candidate = { from: slotFrom, to: slotTo, offset: parseInt(slotOffset, 10) || 0 }
     if (!validateSlot(candidate)) {
-      Alert.alert('エラー', '開始時刻 < 終了時刻 にしてください\n（日をまたぐスロットは v1 では未対応）')
+      Alert.alert(i18n.t('save.errorTitle'), i18n.t('save.slotError'))
       return
     }
     setSlots(prev => [...prev, candidate])
@@ -93,22 +93,20 @@ export default function SettingsScreen() {
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 
       {/* ── Mode ── */}
-      <Section title="モード">
-        <Row label="ふんわり（ランダム ±2分）">
+      <Section title={i18n.t('mode.title')}>
+        <Row label={i18n.t('mode.fuzzy')}>
           <Switch
             value={mode === 'fuzzy'}
             onValueChange={v => setMode(v ? 'fuzzy' : 'fixed')}
           />
         </Row>
         <Text style={styles.hint}>
-          {mode === 'fuzzy'
-            ? 'オフセットに毎日 ±2分のランダムが加わります。慣れを防げます。'
-            : '毎日同じ固定オフセットを表示します。'}
+          {mode === 'fuzzy' ? i18n.t('mode.fuzzyHint') : i18n.t('mode.fixedHint')}
         </Text>
       </Section>
 
       {/* ── Offset ── */}
-      <Section title="オフセット（分）">
+      <Section title={i18n.t('offset.title')}>
         <View style={styles.presetRow}>
           {PRESET_MINUTES.map(m => (
             <TouchableOpacity
@@ -117,7 +115,7 @@ export default function SettingsScreen() {
               onPress={() => { setOffsetMinutes(m); setUseCustom(false) }}
             >
               <Text style={[styles.presetText, !useCustom && offsetMinutes === m && styles.presetTextActive]}>
-                {m}分
+                {i18n.t('offset.minuteLabel', { count: m })}
               </Text>
             </TouchableOpacity>
           ))}
@@ -127,32 +125,33 @@ export default function SettingsScreen() {
             style={[styles.preset, useCustom && styles.presetActive]}
             onPress={() => setUseCustom(true)}
           >
-            <Text style={[styles.presetText, useCustom && styles.presetTextActive]}>カスタム</Text>
+            <Text style={[styles.presetText, useCustom && styles.presetTextActive]}>
+              {i18n.t('offset.custom')}
+            </Text>
           </TouchableOpacity>
           <TextInput
             style={[styles.customInput, useCustom && styles.customInputActive]}
             keyboardType="number-pad"
-            placeholder="1〜60"
+            placeholder={i18n.t('offset.placeholder')}
             value={customInput}
             onChangeText={t => { setCustomInput(t); setUseCustom(true) }}
             maxLength={2}
           />
-          <Text style={styles.minLabel}>分</Text>
+          <Text style={styles.minLabel}>{i18n.t('offset.unit')}</Text>
         </View>
       </Section>
 
       {/* ── Schedule slots ── */}
-      <Section title="時間帯別設定（任意）">
-        <Text style={styles.hint}>
-          特定の時間帯だけ別のオフセットを使いたい場合に設定します。
-          マッチしない時間帯は上のオフセットを使います。
-        </Text>
+      <Section title={i18n.t('slots.title')}>
+        <Text style={styles.hint}>{i18n.t('slots.hint')}</Text>
 
         {slots.map((s, i) => (
           <View key={i} style={styles.slotItem}>
-            <Text style={styles.slotText}>{s.from} 〜 {s.to}　+{s.offset}分</Text>
+            <Text style={styles.slotText}>
+              {i18n.t('slots.itemLabel', { from: s.from, to: s.to, offset: s.offset })}
+            </Text>
             <TouchableOpacity onPress={() => handleRemoveSlot(i)}>
-              <Text style={styles.removeBtn}>削除</Text>
+              <Text style={styles.removeBtn}>{i18n.t('slots.remove')}</Text>
             </TouchableOpacity>
           </View>
         ))}
@@ -165,7 +164,7 @@ export default function SettingsScreen() {
             onChangeText={setSlotFrom}
             maxLength={5}
           />
-          <Text style={styles.slotSep}>〜</Text>
+          <Text style={styles.slotSep}>{i18n.t('slots.separator')}</Text>
           <TextInput
             style={styles.slotInput}
             placeholder="09:00"
@@ -181,9 +180,9 @@ export default function SettingsScreen() {
             onChangeText={setSlotOffset}
             maxLength={2}
           />
-          <Text style={styles.minLabel}>分</Text>
+          <Text style={styles.minLabel}>{i18n.t('offset.unit')}</Text>
           <TouchableOpacity style={styles.addBtn} onPress={handleAddSlot}>
-            <Text style={styles.addBtnText}>追加</Text>
+            <Text style={styles.addBtnText}>{i18n.t('slots.add')}</Text>
           </TouchableOpacity>
         </View>
       </Section>
@@ -194,7 +193,9 @@ export default function SettingsScreen() {
         onPress={handleSave}
         disabled={saving}
       >
-        <Text style={styles.saveBtnText}>{saving ? '保存中…' : '保存してウィジェットに反映'}</Text>
+        <Text style={styles.saveBtnText}>
+          {saving ? i18n.t('save.saving') : i18n.t('save.button')}
+        </Text>
       </TouchableOpacity>
 
     </ScrollView>
