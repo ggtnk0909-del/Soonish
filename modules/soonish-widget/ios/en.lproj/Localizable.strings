@@ -1,0 +1,2 @@
+/* App Group error */
+"error.appGroupNotFound" = "App Group '%@' is not configured. Please add the App Group capability in Xcode.";

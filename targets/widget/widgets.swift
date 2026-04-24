@@ -35,7 +35,7 @@ private struct SoonishSettings {
 
 struct SoonishWidgetIntent: WidgetConfigurationIntent {
     static let title: LocalizedStringResource = "Soonish"
-    static let description = IntentDescription("少し先の時刻を表示して遅刻を防ぎます。")
+    static let description = IntentDescription(LocalizedStringResource("widget.description", table: "Localizable"))
 }
 
 // MARK: - Timeline entry
@@ -111,7 +111,7 @@ struct SoonishWidget: Widget {
             SoonishWidgetView(entry: entry)
         }
         .configurationDisplayName("Soonish")
-        .description("少し先の時刻を表示して遅刻を防ぎます。")
+        .description(LocalizedStringResource("widget.description", table: "Localizable"))
         .supportedFamilies([
             .systemSmall,
             .accessoryCircular,   // lock screen

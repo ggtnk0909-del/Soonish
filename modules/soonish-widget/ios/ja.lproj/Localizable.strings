@@ -1,0 +1,2 @@
+/* App Group error */
+"error.appGroupNotFound" = "App Group '%@' が設定されていません。Xcode で App Group capability を追加してください。";

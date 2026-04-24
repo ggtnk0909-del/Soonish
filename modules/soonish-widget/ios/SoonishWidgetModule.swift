@@ -10,7 +10,8 @@ public class SoonishWidgetModule: Module {
     // saveSettings(args: { offsetMinutes, mode, fuzz, slotsJSON })
     AsyncFunction("saveSettings") { (args: [String: Any]) throws in
       guard let defaults = UserDefaults(suiteName: appGroupID) else {
-        throw Exception(name: "AppGroupError", description: "App Group '\(appGroupID)' が設定されていません。Xcode で App Group capability を追加してください。")
+        let msg = String(format: NSLocalizedString("error.appGroupNotFound", comment: ""), appGroupID)
+        throw Exception(name: "AppGroupError", description: msg)
       }
 
       if let offset = args["offsetMinutes"] as? Int {
