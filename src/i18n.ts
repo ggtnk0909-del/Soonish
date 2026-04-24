@@ -1,0 +1,88 @@
+import { I18n } from 'i18n-js'
+import * as Localization from 'expo-localization'
+
+const translations = {
+  en: {
+    mode: {
+      title: 'Mode',
+      fuzzy: 'Fuzzy (random ±2 min)',
+      fuzzyHint: 'Adds a random ±2-minute variation to your offset each day. Helps prevent habituation.',
+      fixedHint: 'Displays the same fixed offset every day.',
+    },
+    offset: {
+      title: 'Offset (minutes)',
+      custom: 'Custom',
+      placeholder: '1–60',
+      unit: 'min',
+      minuteLabel: '%{count} min',
+    },
+    slots: {
+      title: 'Time-based offsets (optional)',
+      hint: 'Set a different offset for specific time ranges.\nOther times use the offset above.',
+      remove: 'Remove',
+      add: 'Add',
+      separator: '–',
+      itemLabel: '%{from} – %{to}  +%{offset} min',
+    },
+    save: {
+      button: 'Save & update widget',
+      saving: 'Saving…',
+      successTitle: 'Saved',
+      successMessage: 'Widget will be updated.',
+      errorTitle: 'Error',
+      errorCustomOffset: 'Custom offset must be between 1 and 60 minutes.',
+      errorSaveFailed: 'Failed to save settings.\nMake sure App Group is configured in Xcode.',
+      androidSuccess: 'Saved (widget not available on Android)',
+      slotError: 'Start time must be before end time\n(cross-midnight slots not supported in v1)',
+    },
+    peek: {
+      label: 'Real time',
+      hint: 'Closes in 3 seconds',
+    },
+  },
+  ja: {
+    mode: {
+      title: 'モード',
+      fuzzy: 'ふんわり（ランダム ±2分）',
+      fuzzyHint: 'オフセットに毎日 ±2分のランダムが加わります。慣れを防げます。',
+      fixedHint: '毎日同じ固定オフセットを表示します。',
+    },
+    offset: {
+      title: 'オフセット（分）',
+      custom: 'カスタム',
+      placeholder: '1〜60',
+      unit: '分',
+      minuteLabel: '%{count}分',
+    },
+    slots: {
+      title: '時間帯別設定（任意）',
+      hint: '特定の時間帯だけ別のオフセットを使いたい場合に設定します。\nマッチしない時間帯は上のオフセットを使います。',
+      remove: '削除',
+      add: '追加',
+      separator: '〜',
+      itemLabel: '%{from} 〜 %{to}　+%{offset}分',
+    },
+    save: {
+      button: '保存してウィジェットに反映',
+      saving: '保存中…',
+      successTitle: '保存しました',
+      successMessage: 'ウィジェットに反映されます',
+      errorTitle: 'エラー',
+      errorCustomOffset: 'カスタムオフセットは 1〜60 分で指定してください',
+      errorSaveFailed: '設定の保存に失敗しました。\nApp Group が設定されているか確認してください。',
+      androidSuccess: '保存しました（Android はウィジェット未対応）',
+      slotError: '開始時刻 < 終了時刻 にしてください\n（日をまたぐスロットは v1 では未対応）',
+    },
+    peek: {
+      label: '本当の時刻',
+      hint: '3秒後に閉じます',
+    },
+  },
+}
+
+const i18n = new I18n(translations)
+i18n.locale = Localization.getLocales()[0]?.languageCode ?? 'en'
+i18n.enableFallback = true
+i18n.defaultLocale = 'en'
+
+export default i18n
