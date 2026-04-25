@@ -93,3 +93,8 @@ await sharp(Buffer.from(svg))
   .toFile(resolve(__dirname, '../assets/adaptive-icon.png'))
 
 console.log('adaptive-icon.png generated')
+
+// iOSネイティブプロジェクトにも同期
+const iosIconPath = resolve(__dirname, '../ios/Soonish/Images.xcassets/AppIcon.appiconset/App-Icon-1024x1024@1x.png')
+await sharp(Buffer.from(svg)).resize(1024, 1024).png().toFile(iosIconPath)
+console.log('iOS AppIcon synced')
