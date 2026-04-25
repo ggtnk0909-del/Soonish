@@ -26,6 +26,7 @@ const translations = {
     },
     save: {
       button: 'Set notification',
+      cancel: 'Cancel',
       saving: 'Saving…',
       successTitle: 'Saved',
       successMessage: 'Widget will be updated.',
@@ -34,6 +35,7 @@ const translations = {
       errorSaveFailed: 'Failed to save settings.\nMake sure App Group is configured in Xcode.',
       androidSuccess: 'Saved (widget not available on Android)',
       slotError: 'Start time must be before end time\n(cross-midnight slots not supported in v1)',
+      errorNoWeekdays: 'Please select at least one day.',
     },
     peek: {
       label: 'Real time',
@@ -84,6 +86,7 @@ const translations = {
     },
     save: {
       button: '通知を設定',
+      cancel: 'キャンセル',
       saving: '保存中…',
       successTitle: '保存しました',
       successMessage: 'ウィジェットに反映されます',
@@ -92,6 +95,7 @@ const translations = {
       errorSaveFailed: '設定の保存に失敗しました。\nApp Group が設定されているか確認してください。',
       androidSuccess: '保存しました（Android はウィジェット未対応）',
       slotError: '開始時刻 < 終了時刻 にしてください\n（日をまたぐスロットは v1 では未対応）',
+      errorNoWeekdays: '曜日を1つ以上選択してください。',
     },
     peek: {
       label: '本当の時刻',

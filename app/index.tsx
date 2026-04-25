@@ -211,11 +211,6 @@ function ScheduleEditor({
                 }
               </Text>
               {s.fuzzMax > 0 && (
-                <Text style={styles.notifyPreviewFuzz}>
-                  {formatHM(early.hour, early.minute)} 〜 {formatHM(late.hour, late.minute)}
-                </Text>
-              )}
-              {s.fuzzMax > 0 && (
                 <Text style={[styles.notifyPreviewBuffer, buffer <= 5 && styles.notifyPreviewBufferWarn]}>
                   {i18n.t('alarm.minBuffer', { min: buffer })}
                 </Text>
@@ -230,7 +225,7 @@ function ScheduleEditor({
               onChange={v => setS(p => ({ ...p, departureHour: v }))}
               format={v => String(v).padStart(2, '0')} />
             <Text style={styles.timeSep}>:</Text>
-            <Stepper value={s.departureMinute} min={0} max={59} step={1}
+            <Stepper value={s.departureMinute} min={0} max={55} step={5}
               onChange={v => setS(p => ({ ...p, departureMinute: v }))}
               format={v => String(v).padStart(2, '0')} />
           </View>
@@ -269,11 +264,17 @@ function ScheduleEditor({
 
         <View style={styles.editorBtns}>
           <TouchableOpacity style={styles.cancelBtn} onPress={onCancel}>
-            <Text style={styles.cancelBtnText}>キャンセル</Text>
+            <Text style={styles.cancelBtnText}>{i18n.t('save.cancel')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.saveBtn, s.weekdays.length === 0 && styles.saveBtnDisabled]}
-            onPress={() => s.weekdays.length > 0 && onSave(s)}
+            onPress={() => {
+              if (s.weekdays.length === 0) {
+                Alert.alert(i18n.t('save.errorTitle'), i18n.t('save.errorNoWeekdays'))
+              } else {
+                onSave(s)
+              }
+            }}
           >
             <Text style={styles.saveBtnText}>{i18n.t('save.button')}</Text>
           </TouchableOpacity>
@@ -326,7 +327,7 @@ function Stepper({
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#f2f2f7' },
   scroll: { flex: 1 },
-  content: { padding: 20, paddingBottom: 100 },
+  content: { padding: 12, paddingBottom: 24 },
 
   empty: { textAlign: 'center', color: '#8e8e93', marginTop: 60, fontSize: 15 },
 
@@ -366,7 +367,7 @@ const styles = StyleSheet.create({
 
   section: {
     backgroundColor: '#fff', borderRadius: 12,
-    padding: 16, marginBottom: 20,
+    padding: 12, marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 13, fontWeight: '600', color: '#6e6e73',
@@ -394,14 +395,14 @@ const styles = StyleSheet.create({
   notifyPreviewCard: {
     backgroundColor: '#007aff',
     borderRadius: 16,
-    padding: 24,
+    padding: 16,
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 12,
   },
-  notifyPreviewTime: { color: '#fff', fontSize: 72, fontWeight: '100', lineHeight: 80 },
-  notifyPreviewBase: { color: 'rgba(255,255,255,0.9)', fontSize: 15, marginTop: 8 },
-  notifyPreviewFuzz: { color: 'rgba(255,255,255,0.6)', fontSize: 13, marginTop: 2 },
-  notifyPreviewBuffer: { color: 'rgba(255,255,255,0.6)', fontSize: 13, marginTop: 6 },
+  notifyPreviewTime: { color: '#fff', fontSize: 56, fontWeight: '100', lineHeight: 62 },
+  notifyPreviewBase: { color: 'rgba(255,255,255,0.9)', fontSize: 14, marginTop: 6 },
+  notifyPreviewFuzz: { color: 'rgba(255,255,255,0.6)', fontSize: 12, marginTop: 2 },
+  notifyPreviewBuffer: { color: 'rgba(255,255,255,0.6)', fontSize: 12, marginTop: 4 },
   notifyPreviewBufferWarn: { color: '#ffd60a' },
 
   editorBtns: { flexDirection: 'row', gap: 12, marginTop: 8 },
