@@ -44,6 +44,9 @@ Soonishは、この「慣れ」を防ぐためのアプリです。
 • アラームに慣れてしまった方
 • もう少し時間的余裕を持って出かけたい方
 
+【ご注意】
+アプリの制約により通知を継続するには、数週間に１度開く必要があります。
+
 Soonish——「そろそろかな」をちょっとランダムに。
 
 ### English
@@ -64,6 +67,9 @@ Set your departure time and how many minutes before you want to be notified. Soo
 • People who tend to cut it close every morning
 • Anyone who's become immune to their regular alarm
 • Those who want a little more breathing room in their mornings
+
+[Note]
+Due to app limitations, you need to open the app once every few weeks to keep notifications active.
 
 Soonish — a gentle, slightly unpredictable nudge.
 

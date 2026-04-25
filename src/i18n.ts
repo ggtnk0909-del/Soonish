@@ -60,6 +60,7 @@ const translations = {
       minBuffer: 'At latest, %{min} min before departure',
       scheduleDesc: 'Notify at %{notifyTime} (%{offset} min before), ±%{fuzz} min random',
       scheduleDescFixed: 'Notify at %{notifyTime} (%{offset} min before departure)',
+      refreshHint: 'Due to app limitations, you need to open the app once every few weeks to keep notifications active.',
     },
   },
   ja: {
@@ -120,6 +121,7 @@ const translations = {
       minBuffer: '最遅でも出発%{min}分前に通知',
       scheduleDesc: '%{notifyTime}（出発%{offset}分前）±%{fuzz}分でランダムに通知',
       scheduleDescFixed: '%{notifyTime}（出発%{offset}分前）に通知',
+      refreshHint: 'アプリの制約により通知を継続するには、数週間に１度開く必要があります。',
     },
   },
 }

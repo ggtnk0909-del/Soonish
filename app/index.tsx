@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
+import * as Notifications from 'expo-notifications'
 import { loadSettings, saveSettings } from '../modules/soonish-widget'
 import {
   requestPermission,
@@ -45,7 +46,23 @@ export default function SettingsScreen() {
       const loaded = await loadSettings()
       if (loaded.isInitialized && loaded.schedulesJSON) {
         try {
-          setSchedules(JSON.parse(loaded.schedulesJSON as string))
+          const parsed: Schedule[] = JSON.parse(loaded.schedulesJSON as string)
+          setSchedules(parsed)
+
+          // 残り通知が少なければ補充（目安: 2週間分）
+          if (parsed.length > 0) {
+            const { status } = await Notifications.getPermissionsAsync()
+            if (status === 'granted') {
+              const existing = await Notifications.getAllScheduledNotificationsAsync()
+              if (existing.length < 14) {
+                await scheduleAllNotifications(
+                  parsed,
+                  i18n.t('alarm.notificationTitle'),
+                  (time) => i18n.t('alarm.notificationBody', { time }),
+                )
+              }
+            }
+          }
         } catch {}
       }
     })()
@@ -116,6 +133,9 @@ export default function SettingsScreen() {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         {schedules.length === 0 && (
           <Text style={styles.empty}>{i18n.t('alarm.noSchedules')}</Text>
+        )}
+        {schedules.length > 0 && (
+          <Text style={styles.refreshHint}>{i18n.t('alarm.refreshHint')}</Text>
         )}
         {schedules.map(s => {
           const { hour, minute } = calcNotifyMinutes(s, 0)
@@ -330,6 +350,7 @@ const styles = StyleSheet.create({
   content: { padding: 12, paddingBottom: 24 },
 
   empty: { textAlign: 'center', color: '#8e8e93', marginTop: 60, fontSize: 15 },
+  refreshHint: { fontSize: 12, color: '#aeaeb2', textAlign: 'center', marginBottom: 12 },
 
   card: {
     backgroundColor: '#fff',
