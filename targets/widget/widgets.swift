@@ -12,7 +12,9 @@ struct ScheduleEntity: AppEntity {
     let id: String
     let displayName: String
 
-    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "スケジュール")
+    static var typeDisplayRepresentation = TypeDisplayRepresentation(
+        name: LocalizedStringResource("widget.scheduleType", table: "Localizable")
+    )
     static var defaultQuery = ScheduleEntityQuery()
 
     var displayRepresentation: DisplayRepresentation {
@@ -43,8 +45,11 @@ struct ScheduleEntityQuery: EntityQuery {
         let hour   = s["departureHour"]   as? Int ?? 0
         let minute = s["departureMinute"] as? Int ?? 0
         let weekdays = (s["weekdays"] as? [Int] ?? []).sorted()
-        let dayNames = ["日","月","火","水","木","金","土"]
-        let dayStr = weekdays.compactMap { $0 < dayNames.count ? dayNames[$0] : nil }.joined(separator: "・")
+        let dayKeys = ["widget.day.sun","widget.day.mon","widget.day.tue","widget.day.wed",
+                       "widget.day.thu","widget.day.fri","widget.day.sat"]
+        let dayStr = weekdays
+            .compactMap { $0 < dayKeys.count ? NSLocalizedString(dayKeys[$0], tableName: "Localizable", comment: "") : nil }
+            .joined(separator: "・")
         let name = String(format: "%02d:%02d（%@）", hour, minute, dayStr)
         return ScheduleEntity(id: id, displayName: name)
     }

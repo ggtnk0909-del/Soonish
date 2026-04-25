@@ -6,3 +6,15 @@
 
 /* Widget offset subtitle: %d = minutes before departure */
 "widget.offsetLabel" = "%d min before departure";
+
+/* Schedule entity type name */
+"widget.scheduleType" = "Schedule";
+
+/* Day abbreviations for schedule entity display */
+"widget.day.sun" = "Sun";
+"widget.day.mon" = "Mon";
+"widget.day.tue" = "Tue";
+"widget.day.wed" = "Wed";
+"widget.day.thu" = "Thu";
+"widget.day.fri" = "Fri";
+"widget.day.sat" = "Sat";

@@ -298,26 +298,24 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Stepper({
   value, min, max, step = 1, onChange,
   format = (v) => String(v),
-  large = false,
 }: {
   value: number; min: number; max: number; step?: number
   onChange: (v: number) => void; format?: (v: number) => string
-  large?: boolean
 }) {
   return (
     <View style={styles.stepper}>
       <TouchableOpacity
-        style={large ? styles.stepBtnLarge : styles.stepBtn}
+        style={styles.stepBtn}
         onPress={() => onChange(Math.max(min, value - step))}
       >
-        <Text style={large ? styles.stepBtnTextLarge : styles.stepBtnText}>−</Text>
+        <Text style={styles.stepBtnText}>−</Text>
       </TouchableOpacity>
-      <Text style={large ? styles.stepValueLarge : styles.stepValue}>{format(value)}</Text>
+      <Text style={styles.stepValue}>{format(value)}</Text>
       <TouchableOpacity
-        style={large ? styles.stepBtnLarge : styles.stepBtn}
+        style={styles.stepBtn}
         onPress={() => onChange(Math.min(max, value + step))}
       >
-        <Text style={large ? styles.stepBtnTextLarge : styles.stepBtnText}>＋</Text>
+        <Text style={styles.stepBtnText}>＋</Text>
       </TouchableOpacity>
     </View>
   )
@@ -400,7 +398,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
-  notifyPreviewLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 13, marginBottom: 4 },
   notifyPreviewTime: { color: '#fff', fontSize: 72, fontWeight: '100', lineHeight: 80 },
   notifyPreviewBase: { color: 'rgba(255,255,255,0.9)', fontSize: 15, marginTop: 8 },
   notifyPreviewFuzz: { color: 'rgba(255,255,255,0.6)', fontSize: 13, marginTop: 2 },

@@ -6,3 +6,15 @@
 
 /* Widget offset subtitle: %d = minutes before departure */
 "widget.offsetLabel" = "出発%d分前";
+
+/* Schedule entity type name */
+"widget.scheduleType" = "スケジュール";
+
+/* Day abbreviations for schedule entity display */
+"widget.day.sun" = "日";
+"widget.day.mon" = "月";
+"widget.day.tue" = "火";
+"widget.day.wed" = "水";
+"widget.day.thu" = "木";
+"widget.day.fri" = "金";
+"widget.day.sat" = "土";
