@@ -37,7 +37,8 @@
         {
           "appleTeamId": "UC35Y89335"
         }
-      ]
+      ],
+      "./plugins/withSwiftPodSettings"
     ]
   }
 }
